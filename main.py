@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-
 from fastapi import FastAPI, HTTPException
 from langchain_community.retrievers import YouRetriever
 from langchain.chains import RetrievalQA
