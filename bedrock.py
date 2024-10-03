@@ -1,13 +1,21 @@
+import os
 import boto3
 from dotenv import load_dotenv
 from langchain_community.retrievers import YouRetriever
 from langchain.chains import RetrievalQA
-from langchain.memory.buffer_window import ConversationBufferWindowMemory
-
 from langchain_community.llms import Bedrock
+from langchain_community.chat_models import BedrockChat
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.memory.chat_message_histories import RedisChatMessageHistory
 
 load_dotenv()
 
+# Redis setup
+redis_host = os.getenv("REDIS_HOST", "localhost")
+redis_port = int(os.getenv("REDIS_PORT", 6379))
+redis_password = os.getenv("REDIS_PASSWORD", "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81")
+
+# YouRetriever and Bedrock setup
 yr = YouRetriever()
 
 bedrock_runtime = boto3.client(
@@ -15,30 +23,40 @@ bedrock_runtime = boto3.client(
     region_name="us-east-1",
 )
 
-bedrock_model = Bedrock(
-    model_id="amazon.titan-text-lite-v1",
+bedrock_model = BedrockChat(
+    model_id="anthropic.claude-3-haiku-20240307-v1:0",
     client=bedrock_runtime,
     model_kwargs={
-        "maxTokenCount": 512,
-        "stopSequences": [],
-        "temperature": 0,
-        "topP": 1,
+        "max_tokens": 256,
     },
 )
 
-memory = ConversationBufferWindowMemory(k=3)  # Remembers the last 3 interactions
+# Set up Redis-backed memory
+session_id = "user_1234"  # Generate or retrieve a unique session ID
 
-# Create the RetrievalQA chain
+message_history = RedisChatMessageHistory(
+    session_id, url=f"redis://:{redis_password}@{redis_host}:{redis_port}"
+)
+
+memory = ConversationBufferWindowMemory(
+    memory_key="chat_history",
+    chat_memory=message_history,
+    k=5,  # Remember last 5 interactions
+)
+
+# Create the RetrievalQA chain with Redis-backed memory
 qa = RetrievalQA.from_chain_type(
     llm=bedrock_model, chain_type="stuff", retriever=yr, memory=memory
 )
 
-response = qa.run(
-    f"You are an assistant at GVSU. When did the current academic semester start?"
+# Use the chain
+response = qa(
+    "You are a helpful assistant at GVSU. Answer the following question from a user: What is ACI?"
 )
-print(response)
+print(response["result"])
 
-response = qa.run(f"And when does it end?")
-print(response)
+response = qa("Now answer this question: List some of their projects")
+print(response["result"])
 
+print("------------------------------")
 print(memory.buffer)

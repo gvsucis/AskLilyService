@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from langchain_community.retrievers import YouRetriever
 from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatAnthropic
 from langchain_community.chat_models import ChatOpenAI
 from pydantic import BaseModel
 import requests
@@ -80,23 +79,6 @@ def query_cohere(request: ChatRequest):
         raise HTTPException(status_code=400, detail={"msg": "Message is required"})
     try:
         response = ask_cohere_with_ai_snippets(request.message)
-        return {"response": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-model = "claude-2"
-qaa = RetrievalQA.from_chain_type(
-    llm=ChatAnthropic(model=model), chain_type="stuff", retriever=yr
-)
-
-
-@app.post("/chat_an")
-def query_anthropic(request: ChatRequest):
-    if not request.message:
-        raise HTTPException(status_code=400, detail={"msg": "Message is required"})
-    try:
-        response = qaa.run(f"You are an assistant at GVSU. {request.message}")
         return {"response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
