@@ -14,10 +14,6 @@ load_dotenv()
 
 search = GoogleSearchAPIWrapper()
 
-redis_host = os.getenv("REDIS_HOST")
-redis_port = int(os.getenv("REDIS_PORT"))
-redis_password = os.getenv("REDIS_PASSWORD")
-
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name="us-east-1",
@@ -45,9 +41,8 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 def query_openai(request: ChatRequest):
     message_history = RedisChatMessageHistory(
-        request.session_id, url=f"redis://:{redis_password}@{redis_host}:{redis_port}"
+        request.session_id, url=os.getenv("REDISCLOUD_URL")
     )
-
     memory = ConversationBufferWindowMemory(
         memory_key="history",
         chat_memory=message_history,
