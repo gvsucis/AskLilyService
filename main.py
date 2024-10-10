@@ -1,3 +1,5 @@
+import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from langchain_community.retrievers import YouRetriever
@@ -21,7 +23,7 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-def read_item(request: ChatRequest):
+def query_openai(request: ChatRequest):
     if not request.message:
         raise HTTPException(status_code=400, detail={"msg": "Message is required"})
     try:
