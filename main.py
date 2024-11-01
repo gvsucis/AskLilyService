@@ -1,37 +1,22 @@
 import os
 
-import boto3
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from langchain.chains import ConversationChain
 from langchain.memory import ConversationBufferWindowMemory
+from langchain_community.callbacks import get_openai_callback
 from langchain_community.chat_message_histories import RedisChatMessageHistory
-from langchain_community.chat_models import BedrockChat
+from langchain_community.chat_models import ChatOpenAI
 from langchain_google_community import GoogleSearchAPIWrapper
 from pydantic import BaseModel
+import logging
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 search = GoogleSearchAPIWrapper()
-
-bedrock_runtime = boto3.client(
-    service_name="bedrock-runtime",
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_KEY"),
-    region_name="us-east-1",
-)
-
-bedrock_model = BedrockChat(
-    model_id="amazon.titan-text-lite-v1",
-    client=bedrock_runtime,
-    model_kwargs={
-        "maxTokenCount": 256,
-        "stopSequences": [],
-        "temperature": 0,
-        "topP": 1,
-    },
-)
-
+model = "gpt-4o-mini"
 app = FastAPI()
 
 
@@ -41,7 +26,7 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-def query_openai(request: ChatRequest):
+async def query_openai(request: ChatRequest):
     message_history = RedisChatMessageHistory(
         request.session_id, url=os.getenv("REDISCLOUD_URL")
     )
@@ -51,7 +36,7 @@ def query_openai(request: ChatRequest):
         k=3,  # Remember last 3 interactions
     )
     conversation_chain = ConversationChain(
-        llm=bedrock_model,
+        llm=ChatOpenAI(model=model, max_tokens=100),
         memory=memory,
     )
     retrieved_info = search.results(request.message, 5)
@@ -68,5 +53,16 @@ def query_openai(request: ChatRequest):
         user_query=request.message,
     )
 
-    response = conversation_chain(full_prompt)
+    with get_openai_callback() as cb:
+        response = conversation_chain(full_prompt)
+
+    logger.info(
+        (
+            f"Tokens Used: {cb.total_tokens}\n"
+            f"\tPrompt Tokens: {cb.prompt_tokens}\n"
+            f"\tCompletion Tokens: {cb.completion_tokens}\n"
+            f"Successful Requests: {cb.successful_requests}\n"
+            f"Total Cost (USD): ${cb.total_cost}"
+        )
+    )
     return {"response": response["response"]}
