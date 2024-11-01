@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -9,11 +10,11 @@ from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain_community.chat_models import ChatOpenAI
 from langchain_google_community import GoogleSearchAPIWrapper
 from pydantic import BaseModel
-import logging
+
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 search = GoogleSearchAPIWrapper()
 model = "gpt-4o-mini"
@@ -36,7 +37,7 @@ async def query_openai(request: ChatRequest):
         k=3,  # Remember last 3 interactions
     )
     conversation_chain = ConversationChain(
-        llm=ChatOpenAI(model=model, max_tokens=100),
+        llm=ChatOpenAI(model=model, max_tokens=200),
         memory=memory,
     )
     retrieved_info = search.results(request.message, 5)
@@ -57,12 +58,9 @@ async def query_openai(request: ChatRequest):
         response = conversation_chain(full_prompt)
 
     logger.info(
-        (
-            f"Tokens Used: {cb.total_tokens}\n"
-            f"\tPrompt Tokens: {cb.prompt_tokens}\n"
-            f"\tCompletion Tokens: {cb.completion_tokens}\n"
-            f"Successful Requests: {cb.successful_requests}\n"
-            f"Total Cost (USD): ${cb.total_cost}"
-        )
+        f"Tokens Used: {cb.total_tokens}, "
+        f"Prompt Tokens: {cb.prompt_tokens}, "
+        f"Completion Tokens: {cb.completion_tokens}, "
+        f"Total Cost (USD): ${cb.total_cost}"
     )
     return {"response": response["response"]}
