@@ -44,7 +44,8 @@ async def query_openai(request: ChatRequest):
 
     prompt_template = (
         "You are a helpful assistant. Using the following information: {retrieved_info}\n"
-        "Answer the user's question: {user_query}"
+        "Give a concise answer to the user's question: {user_query}\n"
+        "Provide links when possible."
     )
 
     full_prompt = prompt_template.format(
