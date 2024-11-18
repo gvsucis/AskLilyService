@@ -37,7 +37,7 @@ async def query_openai(request: ChatRequest):
         k=3,  # Remember last 3 interactions
     )
     conversation_chain = ConversationChain(
-        llm=ChatOpenAI(model=model, max_tokens=200),
+        llm=ChatOpenAI(model=model, max_tokens=250),
         memory=memory,
     )
     retrieved_info = search.results(request.message, 5)
@@ -45,7 +45,7 @@ async def query_openai(request: ChatRequest):
     prompt_template = (
         "You are a helpful assistant. Using the following information: {retrieved_info}\n"
         "Give a concise answer to the user's question: {user_query}\n"
-        "Provide links when possible."
+        "Provide links when possible. Provide an answer containing at most 950 characters."
     )
 
     full_prompt = prompt_template.format(
